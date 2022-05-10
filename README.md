@@ -1,4 +1,4 @@
-Base code is borrowed from [Google Research Repo](https://github.com/google-research/google-research/tree/master/rce).
+Base code is borrowed from [Google Research](https://github.com/google-research/google-research/tree/master/rce) Repo.
 
 # Replacing Rewards with Examples: Example-Based Policy Search via Recursive Classification
 
