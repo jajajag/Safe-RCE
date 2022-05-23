@@ -10,9 +10,9 @@ dependencies:
   - pip:
     - tf-agents==0.6.0
     - mujoco-py==2.0.2.10
-    - mjrl @ git+git://github.com/aravindr93/mjrl@a38324680e76347bfc5040114017b443060b1e0d
+      #- mjrl @ git+git://github.com/aravindr93/mjrl
     - gin-config==0.4.0
-    - tensorflow==2.4.0rc0
+    - tensorflow==2.4.0
     - tensorflow-probability==0.12.1
     - gym==0.12.1
     - mujoco-py==2.0.2.10
