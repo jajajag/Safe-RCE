@@ -1,7 +1,7 @@
 import numpy as np
+import tqdm
 from gym import utils
 from gym.envs.mujoco import mujoco_env
-import tqdm
 
 class AntNoBonusEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     """
@@ -36,6 +36,7 @@ class AntNoBonusEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             reward_survive=survive_reward,
             violation=done
         )
+        #if done: reward -= 1e7
         return ob, reward, done, info
 
     def _get_obs(self):
@@ -61,9 +62,7 @@ class AntNoBonusEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         heights = states[:,0]
         return ~(np.isfinite(states).all(axis=1) & (heights >= 0.2) & (heights <= 1.0))
 
-    def get_dataset(self, num_obs=256):
-        # This generates examples at ~145 observations / sec. When using image
-        # observations is slows down to ~17 FPS.
+    def get_dataset(self, num_obs=1):
         action_vec = [self.action_space.sample() for _ in range(num_obs)]
         obs_vec = [self._get_obs() for _ in tqdm.trange(num_obs)]
         dataset = {

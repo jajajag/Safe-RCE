@@ -1,6 +1,6 @@
 import numpy as np
+import tqdm
 from gym.envs.mujoco import HalfCheetahEnv as GymHalfCheetahEnv
-
 from .mujoco_wrapper import MujocoWrapper
 
 
@@ -53,3 +53,13 @@ class CheetahNoFlipEnv(HalfCheetahEnv):
             _flip_test_env.set_state_from_obs(state)
             violations.append(_flip_test_env.check_termination())
         return np.array(violations)
+
+    def get_dataset(self, num_obs=1):
+        action_vec = [self.action_space.sample() for _ in range(num_obs)]
+        obs_vec = [self._get_obs() for _ in tqdm.trange(num_obs)]
+        dataset = {
+                'observations': np.array(obs_vec, dtype=np.float32),
+                'actions': np.array(action_vec, dtype=np.float32),
+                'rewards': np.zeros(num_obs, dtype=np.float32),
+        }
+        return dataset

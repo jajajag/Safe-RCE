@@ -68,8 +68,9 @@ def load_env(env_name, max_episode_steps=None):
     return tf_env
 
 
+# JAG: We only sample 1 init expert obs to accelerate the training process
 @gin.configurable(denylist=['env', 'env_name'])
-def get_data(env, env_name, num_expert_obs=200, terminal_offset=50):
+def get_data(env, env_name, num_expert_obs=1, terminal_offset=50):
     """Loads the success examples.
 
     Args:
@@ -81,29 +82,19 @@ def get_data(env, env_name, num_expert_obs=200, terminal_offset=50):
     Returns:
         expert_obs: Array with the success examples.
     """
-    if env_name in ['hammer-human-v0', 'door-human-v0', 'relocate-human-v0']:
-        dataset = env.get_dataset()
-        terminals = np.where(dataset['terminals'])[0]
-        expert_obs = np.concatenate(
-                [dataset['observations'][t - terminal_offset:t] for t in terminals],
-                axis=0)
-        indices = np.random.choice(
-                len(expert_obs), size=num_expert_obs, replace=False)
-        expert_obs = expert_obs[indices]
+    # For environments where we generate the expert dataset on the fly, we
+    # can improve performance but only generating the number of expert
+    # observations that we'll actually use. Not all environments support
+    # this function, so we first have to check whether the environment's
+    # get_dataset method accepts a num_obs kwarg.
+    get_dataset_args = inspect.getfullargspec(env.get_dataset).args
+    if 'num_obs' in get_dataset_args:
+        dataset = env.get_dataset(num_obs=num_expert_obs)
     else:
-        # For environments where we generate the expert dataset on the fly, we can
-        # improve performance but only generating the number of expert
-        # observations that we'll actually use. Not all environments support this
-        # function, so we first have to check whether the environment's
-        # get_dataset method accepts a num_obs kwarg.
-        get_dataset_args = inspect.getfullargspec(env.get_dataset).args
-        if 'num_obs' in get_dataset_args:
-            dataset = env.get_dataset(num_obs=num_expert_obs)
-        else:
-            dataset = env.get_dataset()
-        indices = np.random.choice(
-                dataset['observations'].shape[0], size=num_expert_obs, replace=False)
-        expert_obs = dataset['observations'][indices]
+        dataset = env.get_dataset()
+    indices = np.random.choice(
+            dataset['observations'].shape[0], size=num_expert_obs, replace=False)
+    expert_obs = dataset['observations'][indices]
     if 'image' in env_name:
         expert_obs = expert_obs.astype(np.uint8)
     logging.info('Done loading expert observations')

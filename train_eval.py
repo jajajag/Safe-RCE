@@ -41,6 +41,7 @@ from tf_agents.agents.sac import tanh_normal_projection_network
 from tf_agents.drivers import dynamic_step_driver
 from tf_agents.eval import metric_utils
 from tf_agents.metrics import tf_metrics
+#from tf_agents.bandits.metrics.tf_metrics import ConstraintViolationsMetric
 from tf_agents.networks import actor_distribution_network
 from tf_agents.policies import greedy_policy
 from tf_agents.policies import random_tf_policy
@@ -67,13 +68,13 @@ class ClassifierCriticNetwork(critic_network.CriticNetwork):
     """Creates a critic network."""
 
     def __init__(self,
-                             input_tensor_spec,
-                             observation_fc_layer_params=None,
-                             action_fc_layer_params=None,
-                             joint_fc_layer_params=None,
-                             kernel_initializer=None,
-                             last_kernel_initializer=None,
-                             name='ClassifierCriticNetwork'):
+            input_tensor_spec,
+            observation_fc_layer_params=None,
+            action_fc_layer_params=None,
+            joint_fc_layer_params=None,
+            kernel_initializer=None,
+            last_kernel_initializer=None,
+            name='ClassifierCriticNetwork'):
         super(ClassifierCriticNetwork, self).__init__(
                 input_tensor_spec,
                 observation_fc_layer_params=observation_fc_layer_params,
@@ -102,7 +103,7 @@ def train_eval(
         # Hopper and Cartpole results up to 1000000 iters,
         # Humanoid results up to 10000000 iters,
         # Other mujoco tasks up to 3000000 iters.
-        num_iterations=3000000,
+        num_iterations=1000000,
         actor_fc_layers=(256, 256),
         critic_obs_fc_layers=None,
         critic_action_fc_layers=None,
@@ -128,7 +129,7 @@ def train_eval(
         use_tf_functions=True,
         # Params for eval
         num_eval_episodes=30,
-        eval_interval=10000,
+        eval_interval=1000,
         # Params for summaries and logging
         train_checkpoint_interval=200000,
         # policy_checkpoint_interval=50000,
@@ -205,18 +206,22 @@ def train_eval(
         eval_summary_writer = tf.compat.v2.summary.create_file_writer(
                 eval_dir, flush_millis=summaries_flush_secs * 1000)
         eval_metrics = [
-                tf_metrics.AverageReturnMetric(buffer_size=num_eval_episodes,
-                                                                             batch_size=tf_env.batch_size),
-                tf_metrics.AverageEpisodeLengthMetric(buffer_size=num_eval_episodes,
-                                                                                            batch_size=tf_env.batch_size)
+                tf_metrics.AverageReturnMetric(
+                    buffer_size=num_eval_episodes,
+                    batch_size=tf_env.batch_size),
+                tf_metrics.AverageEpisodeLengthMetric(
+                    buffer_size=num_eval_episodes,
+                    batch_size=tf_env.batch_size)
         ]
         train_metrics = [
                 tf_metrics.NumberOfEpisodes(),
                 tf_metrics.EnvironmentSteps(),
                 tf_metrics.AverageReturnMetric(
-                        buffer_size=num_eval_episodes, batch_size=tf_env.batch_size),
+                        buffer_size=num_eval_episodes, 
+                        batch_size=tf_env.batch_size),
                 tf_metrics.AverageEpisodeLengthMetric(
-                        buffer_size=num_eval_episodes, batch_size=tf_env.batch_size),
+                        buffer_size=num_eval_episodes,
+                        batch_size=tf_env.batch_size),
         ]
 
         eval_policy = greedy_policy.GreedyPolicy(tf_agent.policy)
@@ -272,8 +277,8 @@ def train_eval(
         if replay_buffer.num_frames() == 0:
             # Collect initial replay data.
             logging.info(
-                    'Initializing replay buffer by collecting experience for %d steps '
-                    'with a random policy.', initial_collect_steps)
+                    'Initializing replay buffer by collecting experience for '
+                    '%d steps with a random policy.', initial_collect_steps)
             initial_collect_driver.run()
 
         results = metric_utils.eager_compute(
@@ -317,8 +322,28 @@ def train_eval(
         expert_dataset = expert_dataset.batch(batch_size, drop_remainder=True)
         expert_iterator = iter(expert_dataset)
 
-        def train_step():
+        def train_step(expert_obs):
+            #expert_obs += expert_obs
+            # Append risky examples to the expert_dataset
+            #expert_dataset = tf.data.Dataset.from_tensors(expert_obs)
+            #expert_dataset = expert_dataset.unbatch()
+            #expert_dataset = expert_dataset.repeat().shuffle(int(1e6))
+            #expert_dataset = expert_dataset.batch(
+            #        batch_size, drop_remainder=True)
+            expert_iterator = iter(expert_dataset)
             experience, _ = next(iterator)
+            #reward = tf.unstack(experience.reward)
+            #print(reward)
+            #experience._replace(
+            #        observation=experience.observation,
+            #        action=experience.action,
+            #        discount=experience.discount,
+            #        reward=reward,
+            #        step_type=experience.step_type,
+            #        next_step_type=experience.next_step_type)
+
+            #print(tf.unstack(experience[0]))
+            #print(tf.print(experience))
             expert_experience = next(expert_iterator)
             return tf_agent.train(experience=(experience, expert_experience))
 
@@ -335,14 +360,14 @@ def train_eval(
             )
             env_time_acc += time.time() - start_time
             for _ in range(train_steps_per_iteration):
-                train_loss = train_step()
+                train_loss = train_step(expert_obs)
             time_acc += time.time() - start_time
 
             global_step_val = global_step.numpy()
 
             if global_step_val % log_interval == 0:
-                logging.info('step = %d, loss = %f', global_step_val,
-                                         train_loss.loss)
+                logging.info('step = %d, loss = %f',
+                        global_step_val, train_loss.loss)
                 steps_per_sec = (global_step_val - timed_at_step) / time_acc
                 logging.info('%.3f steps/sec', steps_per_sec)
                 tf.compat.v2.summary.scalar(
@@ -381,7 +406,6 @@ def train_eval(
 
             # if global_step_val % policy_checkpoint_interval == 0:
             #     policy_checkpointer.save(global_step=global_step_val)
-#
             if global_step_val % rb_checkpoint_interval == 0:
                 rb_checkpointer.save(global_step=global_step_val)
         return train_loss
