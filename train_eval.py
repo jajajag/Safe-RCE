@@ -48,8 +48,9 @@ from tf_agents.policies import random_tf_policy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
 
-flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
-                                        'Root directory for writing logs/summaries/checkpoints.')
+flags.DEFINE_string('root_dir',
+        os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
+        'Root directory for writing logs/summaries/checkpoints.')
 flags.DEFINE_multi_string('gin_file', None, 'Path to the trainer config files.')
 flags.DEFINE_multi_string('gin_bindings', None, 'Gin binding to pass through.')
 
@@ -59,7 +60,8 @@ FLAGS = flags.FLAGS
 @gin.configurable
 def bce_loss(y_true, y_pred, label_smoothing=0):
     loss_fn = tf.keras.losses.BinaryCrossentropy(
-            label_smoothing=label_smoothing, reduction=tf.keras.losses.Reduction.NONE)
+            label_smoothing=label_smoothing,
+            reduction=tf.keras.losses.Reduction.NONE)
     return loss_fn(y_true[:, None], y_pred[:, None])
 
 
@@ -157,8 +159,6 @@ def train_eval(
             lambda: tf.math.equal(global_step % summary_interval, 0)):
         tf_env = rce_envs.load_env(env_name)
         eval_tf_env = rce_envs.load_env(env_name)
-        if env_name == 'sawyer_lift':
-            eval_tf_env.MODE = 'eval'
 
         expert_obs = rce_envs.get_data(tf_env.envs[0], env_name=env_name)
 
@@ -330,7 +330,7 @@ def train_eval(
             #expert_dataset = expert_dataset.repeat().shuffle(int(1e6))
             #expert_dataset = expert_dataset.batch(
             #        batch_size, drop_remainder=True)
-            expert_iterator = iter(expert_dataset)
+            #expert_iterator = iter(expert_dataset)
             experience, _ = next(iterator)
             #reward = tf.unstack(experience.reward)
             #print(reward)

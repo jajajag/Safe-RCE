@@ -1,2 +1,6 @@
 
 *.pyc
+d4rl/
+*.v2
+*.gin
+mjrl/
