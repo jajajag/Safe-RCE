@@ -1,4 +1,5 @@
 import numpy as np
+import tqdm
 from gym.envs.mujoco import mujoco_env
 from gym import utils
 
@@ -77,3 +78,14 @@ class HumanoidNoBonusEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def check_violation(self, states):
         heights = states[:,0]
         return (heights < 1.0) | (heights > 2.0)
+    
+    def get_dataset(self, num_obs=256):
+        # This generates examples at ~95 observations / sec.
+        action_vec = [self.action_space.sample() for _ in range(num_obs)]
+        obs_vec = [self._get_obs() for _ in tqdm.trange(num_obs)]
+        dataset = {
+            'observations': np.array(obs_vec, dtype=np.float32),
+            'actions': np.array(action_vec, dtype=np.float32),
+            'rewards': np.zeros(num_obs, dtype=np.float32),
+        }
+        return dataset

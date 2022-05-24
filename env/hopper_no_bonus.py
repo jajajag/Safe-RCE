@@ -1,6 +1,6 @@
 import numpy as np
+import tqdm
 from gym.envs.mujoco.hopper import HopperEnv as GymHopperEnv
-
 from .mujoco_wrapper import MujocoWrapper
 
 
@@ -34,3 +34,14 @@ class HopperNoBonusEnv(HopperEnv):
     def check_violation(self, states):
         heights, angs = states[:,0], states[:,1]
         return ~(np.isfinite(states).all(axis=1) & (np.abs(states[:,1:]) < 100).all(axis=1) & (heights > .7) & (np.abs(angs) < .2))
+
+    def get_dataset(self, num_obs=256):
+        # This generates examples at ~95 observations / sec.
+        action_vec = [self.action_space.sample() for _ in range(num_obs)]
+        obs_vec = [self._get_obs() for _ in tqdm.trange(num_obs)]
+        dataset = {
+            'observations': np.array(obs_vec, dtype=np.float32),
+            'actions': np.array(action_vec, dtype=np.float32),
+            'rewards': np.zeros(num_obs, dtype=np.float32),
+        }
+        return dataset
