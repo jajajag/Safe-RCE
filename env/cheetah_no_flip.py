@@ -41,6 +41,8 @@ class CheetahNoFlipEnv(HalfCheetahEnv):
         _flip_test_env.set_state_from_obs(next_state)
         info['violation'] = _flip_test_env.check_termination()
         #self.check_termination()
+        # JAG: Reset reward
+        reward = info['violation']
         return next_state, reward, False, info
 
     # JAG: Does this function really work?

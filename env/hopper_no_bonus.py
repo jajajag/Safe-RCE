@@ -26,6 +26,8 @@ class HopperNoBonusEnv(HopperEnv):
         next_state, reward, done, info = super().step(action)
         reward -= 1     # subtract out alive bonus
         info['violation'] = done
+        # JAG: Reset reward
+        reward = done
         return next_state, reward, done, info
 
     def check_done(self, states):

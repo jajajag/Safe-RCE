@@ -49,6 +49,9 @@ class HumanoidNoBonusEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             print(done, done2)
             import pdb; pdb.set_trace()
 
+        # JAG: Reset reward
+        reward = done
+
         info = dict(
             reward_linvel=lin_vel_cost,
             reward_quadctrl=-quad_ctrl_cost,

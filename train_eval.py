@@ -48,8 +48,7 @@ from tf_agents.policies import random_tf_policy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
 
-flags.DEFINE_string('root_dir',
-        os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
+flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
         'Root directory for writing logs/summaries/checkpoints.')
 flags.DEFINE_multi_string('gin_file', None, 'Path to the trainer config files.')
 flags.DEFINE_multi_string('gin_bindings', None, 'Gin binding to pass through.')
@@ -217,7 +216,7 @@ def train_eval(
                 tf_metrics.NumberOfEpisodes(),
                 tf_metrics.EnvironmentSteps(),
                 tf_metrics.AverageReturnMetric(
-                        buffer_size=num_eval_episodes, 
+                        buffer_size=num_eval_episodes,
                         batch_size=tf_env.batch_size),
                 tf_metrics.AverageEpisodeLengthMetric(
                         buffer_size=num_eval_episodes,
@@ -239,7 +238,8 @@ def train_eval(
                 ckpt_dir=train_dir,
                 agent=tf_agent,
                 global_step=global_step,
-                metrics=metric_utils.MetricsGroup(train_metrics, 'train_metrics'),
+                metrics=metric_utils.MetricsGroup(
+                    train_metrics, 'train_metrics'),
                 max_to_keep=None)
         rb_checkpointer = common.Checkpointer(
                 ckpt_dir=os.path.join(train_dir, 'replay_buffer'),

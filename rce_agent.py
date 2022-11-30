@@ -74,6 +74,68 @@ class RceAgent(tf_agent.TFAgent):
             name = None,
             n_step = None,
             use_behavior_policy = True):
+            #use_behavior_policy = False):
+        """Creates a RCE Agent.
+
+    Args:
+        time_step_spec: A `TimeStep` spec of the expected time_steps.
+        action_spec: A nest of BoundedTensorSpec representing the actions.
+        critic_network: A function critic_network((observations, actions)) that
+            returns the q_values for each observation and action.
+        actor_network: A function actor_network(observation, action_spec) that
+            returns action distribution.
+        actor_optimizer: The optimizer to use for the actor network.
+        critic_optimizer: The default optimizer to use for the critic network.
+        actor_loss_weight: The weight on actor loss.
+        critic_loss_weight: The weight on critic loss.
+        actor_policy_ctor: The policy class to use.
+        critic_network_2: (Optional.)
+            A `tf_agents.network.Network` to be
+            used as the second critic network during Q learning. The weights
+            from `critic_network` are copied if this is not provided.
+        target_critic_network: (Optional.)
+            A `tf_agents.network.Network` to be
+            used as the target critic network during Q learning. Every
+            `target_update_period` train steps, the weights from
+            `critic_network` are copied (possibly withsmoothing via
+            `target_update_tau`) to `target_critic_network`.
+            If `target_critic_network` is not provided, it
+            is created by making a copy of `critic_network`, which initializes
+            a new network with the same structure and its own layers and
+            weights. Performing a `Network.copy` does not work when the network
+            instance already has trainable parameters (e.g., has already been
+            built, or when the network is sharing layers with another).
+            In these cases, it is up to you to build a copy having weights that
+            are not shared with the original `critic_network`, so that this can
+            be used as a target network. If you provide a
+            `target_critic_network` that shares any weights with
+            `critic_network`, a warning will be logged but no exception is
+            thrown.
+        target_critic_network_2: (Optional.) Similar network as
+            target_critic_network but for the critic_network_2. See
+            documentation for target_critic_network. Will only be used if
+            'critic_network_2' is also specified.
+        target_update_tau: Factor for soft update of the target networks.
+        target_update_period: Period for soft update of the target networks.
+        td_errors_loss_fn:    A function for computing the elementwise TD errors
+            loss.
+        gamma: A discount factor for future rewards.
+        reward_scale_factor: Multiplicative scale for the reward.
+        gradient_clipping: Norm length to clip gradients.
+        debug_summaries: A bool to gather debug summaries.
+        summarize_grads_and_vars: If True, gradient and network variable
+            summaries will be written during training.
+        train_step_counter: An optional counter to increment every time the
+            train op is run.    Defaults to the global_step.
+        name: The name of this agent. All variables in this module will fall
+            under that name. Defaults to the class name.
+        n_step: An integer specifying whether to use n-step returns.
+            Empirically, a value of 10 works well for most tasks. Use None to
+            disable n-step returns.
+        use_behavior_policy: A boolean indicating how to sample actions for the
+            success states. When use_behavior_policy=True, we use the historical
+            average policy; otherwise, we use the current policy.
+        """
         tf.Module.__init__(self, name=name)
 
         self._check_action_spec(action_spec)
@@ -264,8 +326,8 @@ class RceAgent(tf_agent.TFAgent):
                 self._critic_network_2.trainable_variables))
 
         with tf.GradientTape(watch_accessed_variables=False) as tape:
-            assert trainable_critic_variables, (
-                    'No trainable critic variables to optimize.')
+            assert trainable_critic_variables, \
+                    ('No trainable critic variables to optimize.')
             tape.watch(trainable_critic_variables)
             critic_loss = self._critic_loss_weight * self.critic_loss(
                     time_steps,
@@ -286,8 +348,8 @@ class RceAgent(tf_agent.TFAgent):
 
         trainable_actor_variables = self._actor_network.trainable_variables
         with tf.GradientTape(watch_accessed_variables=False) as tape:
-            assert trainable_actor_variables, (
-                    'No trainable actor variables to optimize.')
+            assert trainable_actor_variables, \
+                    ('No trainable actor variables to optimize.')
             tape.watch(trainable_actor_variables)
             actor_loss = self._actor_loss_weight * self.actor_loss(
                     time_steps, actions, weights=weights)
@@ -301,17 +363,17 @@ class RceAgent(tf_agent.TFAgent):
             trainable_behavior_variables = \
                     self._behavior_actor_network.trainable_variables
             with tf.GradientTape(watch_accessed_variables=False) as tape:
-                assert trainable_behavior_variables, (
-                        'No trainable behavior variables to optimize.')
+                assert trainable_behavior_variables, \
+                        ('No trainable behavior variables to optimize.')
                 tape.watch(trainable_behavior_variables)
                 behavior_loss = self._actor_loss_weight * self.behavior_loss(
                         time_steps, actions, weights=weights)
-            tf.debugging.check_numerics(behavior_loss, 
+            tf.debugging.check_numerics(behavior_loss,
                     'Behavior loss is inf or nan.')
-            behavior_grads = tape.gradient(behavior_loss,
-                    trainable_behavior_variables)
-            self._apply_gradients(behavior_grads, trainable_behavior_variables,
-                    self._actor_optimizer)
+            behavior_grads = tape.gradient(
+                    behavior_loss, trainable_behavior_variables)
+            self._apply_gradients(behavior_grads, 
+                    trainable_behavior_variables, self._actor_optimizer)
         else:
             behavior_loss = 0.0
 
@@ -322,9 +384,8 @@ class RceAgent(tf_agent.TFAgent):
             tf.compat.v2.summary.scalar(
                     name='actor_loss', data=actor_loss,
                     step=self.train_step_counter)
-            tf.compat.v2.summary.scalar(
-                    name='behavior_loss', data=behavior_loss, 
-                    step=self.train_step_counter)
+            tf.compat.v2.summary.scalar(name='behavior_loss',
+                    data=behavior_loss, step=self.train_step_counter)
 
         self.train_step_counter.assign_add(1)
         self._update_target()
@@ -503,10 +564,12 @@ class RceAgent(tf_agent.TFAgent):
                 # w = C / (1 - C)
                 w = target_q_values / (1 - target_q_values)
                 td_targets = gamma * w / (gamma * w + 1)
+                #ww = (target_q_values / 2) / (1 - target_q_values / 2)
+                print(tf.print(tf.math.reduce_mean(1 - ww)))
                 if use_done:
                     td_targets = next_time_steps.discount * td_targets
-                weights = tf.concat([1 + gamma * w, (1 - gamma) * tf.ones(
-                    batch_size)], axis=0)
+                weights = tf.concat([1 + gamma * w,
+                    (1 - gamma) * tf.ones(batch_size)], axis=0)
 
             td_targets = tf.stop_gradient(td_targets)
             td_targets = tf.concat([td_targets, tf.ones(batch_size)], axis=0)
@@ -577,8 +640,8 @@ class RceAgent(tf_agent.TFAgent):
                 actions for the success examples.
             weights: Optional scalar or elementwise (per-batch-entry) importance
                 weights.
-            q_combinator: Whether to combine the two Q-functions by taking
-                the 'min' (as in TD3) or the 'max'.
+            q_combinator: Whether to combine the two Q-functions by taking the
+                'min' (as in TD3) or the 'max'.
             entropy_coef: Coefficient for entropy regularization term. We found
                 that 1e-4 worked well for all environments.
         Returns:
